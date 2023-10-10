@@ -17,15 +17,15 @@ def get_views(link):
     if star_info:
         return int(''.join(re.findall('\d',star_info.text)))
     else:
-        return 'err'
+        return -1
 
 # print(get_views('https://www.pornhub.com/pornstar/videos_overview?pornstar=aaliyah-jolie'))
 
-today_filename = str(datetime.today().strftime('%Y-%m-%d'))+'.txt'
+today_filename = str(datetime.today().strftime('%Y-%m-%d'))+'.csv'
 
 if os.path.exists(today_filename): # it checks if we something miss, only by numb of lines
     with open('stars.csv','r') as file:
-        with open(today_filename,'r+') as result:
+        with open('data/'+today_filename,'r+') as result:
 
             for line in result:
                 file.readline()
@@ -42,7 +42,7 @@ if os.path.exists(today_filename): # it checks if we something miss, only by num
 else:
     with open('stars.csv','r') as file:
 
-        with open(today_filename,'w') as result:
+        with open('data/'+today_filename,'w') as result:
 
             result.write(file.readline().strip()+",count"+'\n')
 
