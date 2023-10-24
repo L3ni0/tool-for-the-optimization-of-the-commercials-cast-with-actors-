@@ -1,106 +1,21 @@
-# visit http://127.0.0.1:8050/ in your web browser.
-
 from dash import Dash, dash_table, dcc, html, Input, Output, callback
 import plotly.express as px
 import pandas as pd
+from functions import read_all_data, split_filter_part
 
 app = Dash(__name__)
 
 colors = {
-    'background': '#111111',
-    'text': '#7FDBFF'
+    'background': '#FFFFFF',
+    'text': '#e87000'
 }
 
 page_size = 10
 
-operators = [['ge ', '>='],
-             ['le ', '<='],
-             ['lt ', '<'],
-             ['gt ', '>'],
-             ['ne ', '!='],
-             ['eq ', '='],
-             ['contains '],
-             ['datestartswith ']]
-
-# assume you have a "long-form" data frame
-# see https://plotly.com/python/px-arguments/ for more options
-
-def split_filter_part(filter_part):
-    for operator_type in operators:
-        for operator in operator_type:
-            if operator in filter_part:
-                name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[name_part.find('{') + 1: name_part.rfind('}')]
-
-                value_part = value_part.strip()
-                v0 = value_part[0]
-                if (v0 == value_part[-1] and v0 in ("'", '"', '`')):
-                    value = value_part[1: -1].replace('\\' + v0, v0)
-                else:
-                    try:
-                        value = float(value_part)
-                    except ValueError:
-                        value = value_part
-
-                # word operators need spaces after them in the filter string,
-                # but we don't want these later
-                return name, operator_type[0].strip(), value
-
-    return [None] * 3
-
-df = pd.read_csv('data/2023-10-09_raw.csv',sep=',',header=0)
-
-fig = px.line(df, x="star")
-
-fig.update_layout(
-    plot_bgcolor=colors['background'],
-    paper_bgcolor=colors['background'],
-    font_color=colors['text']
-)
-
-app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
-    html.H1(
-        children='Hello Dash',
-        style={
-            'textAlign': 'center',
-            'color': colors['text']
-        }
-    ),
-
-    html.Div(children='Dash: A web application framework for your data.', style={
-        'textAlign': 'center',
-        'color': colors['text']
-    }),
-
-    dash_table.DataTable(
-        id='interactive_table',
-        columns=[
-            {'id': i, 'name': i, 'selectable': True} for i in df.columns
-        ],
-        data=df.to_dict('records'),
-        editable=True,
-        filter_action="custom",
-        filter_query='',
-        sort_action="custom",
-        sort_mode="multi",
-        column_selectable="single",
-        row_selectable="multi",
-        row_deletable=True,
-        sort_by=[],
-        page_action="custom",
-        page_current= 0,
-        page_size= page_size,
-    ),
-
-    html.Div(id='datatable-interactivity-container')
 
 
-    # dcc.Graph(
-    #     id='example-graph-2',
-    #     figure=fig
-    # )
-])
-
+df = read_all_data()
+df_pivoted = df.pivot_table(index='star',columns='date',values='views').reset_index()
 
 
 @callback(
@@ -108,10 +23,11 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
     Input('interactive_table', "page_current"),
     Input('interactive_table', "page_size"),
     Input('interactive_table', 'sort_by'),
-    Input('interactive_table', 'filter_query'))
-def update_table(page_current, page_size, sort_by, filter):
+    Input('interactive_table', 'filter_query'),
+    Input('interactive_table',"derived_virtual_selected_rows"))
+def update_table(page_current, page_size, sort_by, filter, selected):
     filtering_expressions = filter.split(' && ')
-    dff = df
+    dff = df_pivoted
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
 
@@ -125,6 +41,8 @@ def update_table(page_current, page_size, sort_by, filter):
             # only works with complete fields in standard format
             dff = dff.loc[dff[col_name].str.startswith(filter_value)]
 
+    if selected:
+        pass
     if len(sort_by):
         dff = dff.sort_values(
             [col['column_id'] for col in sort_by],
@@ -137,9 +55,159 @@ def update_table(page_current, page_size, sort_by, filter):
 
     page = page_current
     size = page_size
-    return dff.iloc[page * size: (page + 1) * size].to_dict('records')
+    print(dff.head())
+    dff = dff.iloc[page * size: (page + 1) * size].to_dict('records')
+    return dff
+
+
+@callback(
+    Output('first_graph', 'children'),
+    Input('interactive_table', 'data')
+    )
+def update_lower_graph(data):
+    temp = pd.DataFrame(data)['star']
+    dff = df[df['star'].isin(temp)]
+    # fig = px.bar(df, x="star", y='video_count')
+
+    # fig.update_layout(
+    #     plot_bgcolor=colors['background'],
+    #     paper_bgcolor=colors['background'],
+    # )
+
+    return html.Div([
+        dcc.Graph(id='line_graph_views',
+
+                  figure={
+                      'data': [
+                          {
+                          'x': dff[dff['star']==star]['date'],
+                          'y': dff[dff['star']==star]['views'],
+                          'type': 'line',
+                          'name': star,
+                        #   'showlegend':False,
+                        #   'marker': {'color': colors['text']},
+                            }
+                            for star in dff['star'].unique()
+                      ],
+                        'layout': 
+                            {
+                            'backgroundColor': '#000000',
+                            'transition': 
+                                {
+                                'duration': 500,
+                                'easing': 'cubic-in-out'
+                                }   
+                            }
+                        },style={'width': '48%', 'display': 'inline-block'}
+                  ),
+        dcc.Graph(id='line_graph_video',
+
+                  figure={
+                      'data': [
+                          {
+                          'x': dff[dff['star']==star]['date'],
+                          'y': dff[dff['star']==star]['video_count'],
+                          'type': 'line',
+                          'name': star,
+                        #   'marker': {'color': colors['text']},
+                            }
+                            for star in dff['star'].unique()
+                      ],
+                        'layout': 
+                            {
+                            'backgroundColor': '#000000',
+                            'transition': 
+                                {
+                                'duration': 500,
+                                'easing': 'cubic-in-out'
+                                }   
+                            }
+                        },
+                        style={'width': '48%', 'display': 'inline-block'}
+                  )
+
+    ])
+
+
+@callback(
+    Output('selected_graph','children'),
+    Input('interactive_table',"derived_virtual_selected_rows"),
+    Input('interactive_table', 'data')
+)
+def show_selected_rows(selected_rows,data):
+    dff = pd.DataFrame(data)
+    print(dff.iloc[selected_rows])
+
+@callback(
+    Output('table-side-graph','children'),
+    Input('interactive_table', 'data'))
+def update_side_plot(data):
+    temp = pd.DataFrame(data)['star']
+    dff = df[df['star'].isin(temp)]
+
+    return html.Div([
+        dcc.Graph(id='bar_graph',
+
+                  figure={
+                      'data': [
+                          {
+                          'x': dff[dff['star']==star]['star'],
+                          'y': dff[dff['star']==star]['views'],
+                          'type': 'bar',
+                          'name': star,
+                            }
+                            for star in dff['star'].unique()
+                      ]
+
+                         }
+                  )])
+
+app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
+
+    html.H1(
+        children='InfluStatsHub',
+        style={
+            'textAlign': 'center',
+            'color': colors['text']
+        }
+    ),
+
+    html.Div(children='A fast stats for your Influencers and more', style={
+        'textAlign': 'center',
+        'color': colors['text']
+    }),
+    html.Div(children=[html.Div(children=
+            dash_table.DataTable(
+            id='interactive_table',
+            columns=[
+                {'id': i, 'name': i, 'selectable': True} for i in df_pivoted.columns
+            ],
+            data=df_pivoted.to_dict('records'),
+            editable=True,
+            filter_action="custom",
+            filter_query='',
+            sort_action="custom",
+            sort_mode="multi",
+            column_selectable="single",
+            row_selectable="multi",
+            selected_rows=[],
+            row_deletable=True,
+            sort_by=[],
+            page_action="custom",
+            page_current= 0,
+            page_size= page_size,
+            ),style={'width': '48%', 'display': 'inline-block'}),
+
+        
+        html.Div(id='table-side-graph',style={'backgroundColor': colors['background'],'display': 'inline-block'})],
+        ),
+    
+    html.Div(id='first_graph',style={'backgroundColor': colors['background']}),
+    html.Div(id='selected_graph',style={'backgroundColor': colors['background']}),
+    html.Div(id='datatable-interactivity-container',style={'width': '48%', 'display': 'inline-block'})
+])
+
 
 
 if __name__ == '__main__':
-    print(df.head(10))
     app.run(debug=True)
