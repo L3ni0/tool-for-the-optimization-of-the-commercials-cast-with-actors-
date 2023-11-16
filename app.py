@@ -15,6 +15,7 @@ colors = {
 page_size = 10
 df_original = read_all_data()
 df = df_original.copy()
+df['views_per_video'] = df['views'] / df['video_count']
 df_pivoted = create_summaries(df)
 df_choosed = pd.DataFrame()
 df_info = pd.read_csv('data/information/general_information.csv',na_values=['None'],header=0)
@@ -128,7 +129,7 @@ def update_table(page_current, page_size, sort_by, filter, selected,gender,ethni
         else:
             num = np.Inf
         
-        algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['Current_Viewership']),int(max_cost),num)
+        algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['views_per_video']),int(max_cost),num)
         print('works')
         best_bits,best_result = algorithm.algorithm()
         print('dfs')
@@ -240,15 +241,6 @@ def update_lower_graph(data):
 
 
 @callback(
-    Output('selected_graph','children'),
-    Input('interactive_table',"derived_virtual_selected_rows"),
-    Input('interactive_table', 'data'))
-def show_selected_rows(selected_rows,data):
-    dff = pd.DataFrame(data)
-    # print(dff.iloc[selected_rows])
-
-
-@callback(
     Output('table-side-graph','children'),
     Input('interactive_table', 'data'))
 def update_side_plot(data):
@@ -262,7 +254,7 @@ def update_side_plot(data):
                       'data': [
                           {
                           'x': dff[dff['star']==star]['star'],
-                          'y': dff[dff['star']==star]['views'],
+                          'y': dff[dff['star']==star]['views_per_video'],
                           'type': 'bar',
                           'name': star,
                             }
@@ -323,8 +315,6 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
             filter_query='',
             sort_action="custom",
             sort_mode="multi",
-            row_selectable="multi",
-            selected_rows=[],
             row_deletable=True,
             sort_by=[],
             page_action="custom",
