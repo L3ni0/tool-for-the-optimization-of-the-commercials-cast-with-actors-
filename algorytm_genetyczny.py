@@ -2,8 +2,9 @@ import numpy as np
 
 class Genetic_algorithm_knapsack:
 
-    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1) -> None:
-        
+    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1, /
+                 num_of_population=10,p_crossing=0.8, p_mutation=0.1, treshold=0.5, starting_point=10) -> None:
+
         assert len(weights) == len(values), 'weights and values number is different'
         assert min(weights) <= max_weight, "solution doesn't exist"
         assert max_num_of_items < min_num_of_items, 'max num of items is lower than min num of items'
@@ -12,13 +13,13 @@ class Genetic_algorithm_knapsack:
         self.max_weight = max_weight
         self.values = np.array(values)
         self.liczba_bitow = len(weights)
-        self.num_if_population = 10
-        self.p_crossing = 0.8
-        self.p_mutation = 0.1
+        self.num_of_population = num_of_population
+        self.p_crossing = p_crossing
+        self.p_mutation = p_mutation
         self.max_num_of_items = max_num_of_items
         self.min_num_of_items = min_num_of_items
-        self.treshold = 0.5
-        self.starting_point = 10
+        self.treshold = treshold
+        self.starting_point = starting_point
 
 
 
@@ -112,7 +113,7 @@ class Genetic_algorithm_knapsack:
 
     def algorithm(self):
 
-        population = [np.random.randint(0, 2, self.liczba_bitow).tolist() for _ in range(self.num_if_population)] # population Initialization
+        population = [np.random.randint(0, 2, self.liczba_bitow).tolist() for _ in range(self.num_of_population)] # population Initialization
         best_bytes, best_results = 0, self.fitness_function(population[0])
         gen = 0
         best_gen = 0
@@ -135,7 +136,7 @@ class Genetic_algorithm_knapsack:
             
             
             # finding best result
-            for i in range(self.num_if_population):
+            for i in range(self.num_of_population):
                 if results[i] > best_results:
                     best_bytes, best_results = population[i], results[i]
                     best_gen = gen
@@ -144,11 +145,11 @@ class Genetic_algorithm_knapsack:
             BF_list.append(best_results)
             
             # wybieranie rodzicow
-            parents = [self.selection(population, results) for _ in range(self.num_if_population)]
+            parents = [self.selection(population, results) for _ in range(self.num_of_population)]
         
             # kolejna generacja
             kids = list()
-            for i in range(0, self.num_if_population, 2):
+            for i in range(0, self.num_of_population, 2):
 
                 
                 r1, r2 = parents[i], parents[i+1]
