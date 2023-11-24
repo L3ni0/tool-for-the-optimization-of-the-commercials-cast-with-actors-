@@ -114,7 +114,7 @@ def create_summaries(df) -> pd.DataFrame:
               'Weight':'Int64',
               'Gender':'string',
               'Ethnicity':'string',
-              'Cost($)':'float64'     
+              'Cost':'float64'     
     }
 
 

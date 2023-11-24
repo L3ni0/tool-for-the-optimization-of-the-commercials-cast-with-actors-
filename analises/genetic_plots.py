@@ -1,9 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class Genetic_algorithm_knapsack:
 
-    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1, \
-                 num_of_population=10,p_crossing=0.8, p_mutation=0.1, treshold=0.5, starting_point=10) -> None:
+    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1,num_of_population=10,p_crossing=0.8, p_mutation=0.1, treshold=0.5, starting_point=10) -> None:
 
         assert len(weights) == len(values), 'weights and values number is different'
         assert min(weights) <= max_weight, "solution doesn't exist"
@@ -114,6 +115,8 @@ class Genetic_algorithm_knapsack:
         best_gen = 0
         BF_list = []
 
+        best_history= [0]
+
         while True:
 
             gen += 1
@@ -131,8 +134,12 @@ class Genetic_algorithm_knapsack:
                     best_bytes, best_results = population[i], results[i]
                     best_gen = gen
                     # print(f"w generacji {gen}, najlepsza populacja {populacja[i]} ma wynik {results[i]}")
+            
+            
+            best_history.append(best_results)
 
-            BF_list.append(max(results))
+            BF_list.append(best_results)
+            del BF_list[0]
             
             # wybieranie rodzicow
             parents = [self.selection(population, results) for _ in range(self.num_of_population)]
@@ -141,6 +148,7 @@ class Genetic_algorithm_knapsack:
             kids = list()
             for i in range(0, self.num_of_population, 2):
 
+                
                 r1, r2 = parents[i], parents[i+1]
 
                 for kid in self.crossover(r1, r2):
@@ -152,24 +160,42 @@ class Genetic_algorithm_knapsack:
             if gen <= self.starting_point:
                 continue
 
-
-            running_mean = ((1/(gen - self.starting_point))*np.sum([(BFi - best_results)**2 for BFi in BF_list]))
-            print(running_mean)
+            running_mean = ((1/self.starting_point)*np.sum([(BFi - best_results)**2 for BFi in BF_list]))
             if running_mean<self.treshold:
                 break
 
-        return [best_bytes, best_results]
-    
-if __name__ == '__main__':
+        return [best_bytes, best_results,best_history]
 
 
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
-    #generate test set
-    values = [np.random.randint(0,1000) for _ in range(100)]
-    weights = [np.random.randint(0,1000) for _ in range(100)]
 
-    g1 = Genetic_algorithm_knapsack(values,weights,np.quantile(weights,0.30),treshold=0.5)
-    naj_bity,naj_wynik = g1.algorithm()
-    print(f'najlepszy wynik ma populacja {naj_bity} ma wynik {naj_wynik}')
+values = [np.random.randint(0,1000) for _ in range(1000)]
+weights = [np.random.randint(0,1000) for _ in range(1000)]
+fig,ax = plt.subplots(3,3,figsize=(14,9), layout='constrained')
+
+
+for y,n in enumerate([10,50,100]):
+    for x,crossing in enumerate([0.001, 0.01, 0.1]):
+        for popuplation in [10,50,100]:
+            for treshold in [0.001,0.01,0.1]:
+
+                results = []
+                g1 = Genetic_algorithm_knapsack(values,weights,np.mean(weights),num_of_population=popuplation,starting_point=n,p_crossing=crossing,treshold=treshold)
+                    
+                for _ in range(4):
+                    naj_bity,naj_wynik,data = g1.algorithm()
+                    results.append(data)
+
+                average = np.mean(np.array(results), axis=0)
+                print(average)
+                ax[y,x].plot([i for i in range(len(average))],np.log2(average), label=f'n:{n},pk:{crossing},pop:{popuplation},ws:{treshold}')
+
+        name = f'liczba populacji:{n}, prawdopodobienstwo krzyzowania:{crossing}'
+        ax[y,x].set_title(name, fontsize=9)
+        ax[y,x].set_ylabel('Sumaryczna średnia oglądalność [log2]',fontsize=9)
+        ax[y,x].set_xlabel('numer generacji',fontsize=10)
+        ax[y,x].legend(loc="lower right",fontsize=6)
+
+        print(crossing)
+
+plt.savefig('analize.png')

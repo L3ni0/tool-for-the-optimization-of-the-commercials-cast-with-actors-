@@ -31,54 +31,6 @@ location_option = list(df_info['Birthplace'].dropna().unique())
 start_button = 0
 choosed = 0
 
-
-
-# @callback(
-#     Output("algorithm-container",'children'),
-#     Input('gender_selected', "value"),
-#     Input('ethnicity_selected', "value"),
-#     Input('location_selected', 'value'),
-#     Input('age_selected', 'value'),
-#     Input('height_selected',"value"),
-#     Input('weight_selected', "value"),
-#     Input('num_actors', "value"),
-#     Input('include_null', 'value'),
-#     Input('start', 'n_clicks'),
-#     Input('max_cost', 'value'))
-# def choose_actors(gender,ethnicity,location,age,height,weight,num,null_flag,button,max_cost):
-#     global start_button, df_choosed
-#     print(button,max_cost)
-#     if button > start_button and max_cost:
-#         start_button = button
-#         print('started')
-#         df_temp = create_summaries(df)
-
-#         if gender:
-#             df_temp = df_temp[df_temp['Gender'].isin(gender)]
-#         if ethnicity:
-#             df_temp = df_temp[df_temp['Ethnicity'].isin(ethnicity)]
-#         if location:
-#             df_temp = df_temp[df_temp['Birthplace'].isin(location)]
-#         if age:
-#             df_temp = df_temp[(age[0] <= df_temp['Age']) &(df_temp['Age'] <= age[1])]
-#         if height:
-#             df_temp = df_temp[(height[0] <= df_temp['Height']) & (df_temp['Height'] <= height[1])]
-#         if weight:
-#             df_temp = df_temp[(weight[0] <= df_temp['Weight']) & (df_temp['Weight'] <= weight[1])]
-#         if num:
-#             num = int(num)
-#         else:
-#             num = np.Inf
-        
-#         algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['Current_Viewership']),int(max_cost),num)
-#         print('works')
-#         best_bits,best_result = algorithm.algorithm()
-#         print('dfs')
-#         df_temp['choosed'] = best_bits
-#         df_temp = df_temp[df_temp['choosed'] == 1]
-#         df_choosed = df_temp.copy()
-    
-#         return df_temp.to_dict()
         
 
 @callback(
@@ -94,11 +46,13 @@ choosed = 0
     Input('age_selected', 'value'),
     Input('height_selected',"value"),
     Input('weight_selected', "value"),
-    Input('num_actors', "value"),
-    Input('include_null', 'value'),
+    Input('max_actors', "value"),
+    Input('min_actors', "value"),
+    Input('vid_download', 'n_clicks'),
+    Input('info_download', 'n_clicks'),
     Input('start', 'n_clicks'),
     Input('max_cost', 'value'))
-def update_table(page_current, page_size, sort_by, filter, selected,gender,ethnicity,location,age,height,weight,num,null_flag,button,max_cost):
+def update_table(page_current, page_size, sort_by, filter, selected,gender,ethnicity,location,age,height,weight,max_num,min_num,vid_d,info_d,button,max_cost):
     global start_button, df_choosed, choosed
     filtering_expressions = filter.split(' && ')
     if not choosed:
@@ -124,21 +78,27 @@ def update_table(page_current, page_size, sort_by, filter, selected,gender,ethni
             df_temp = df_temp[(height[0] <= df_temp['Height']) & (df_temp['Height'] <= height[1])]
         if weight:
             df_temp = df_temp[(weight[0] <= df_temp['Weight']) & (df_temp['Weight'] <= weight[1])]
-        if num:
-            num = int(num)
+        if max_num:
+            maxx = int(max_num)
         else:
-            num = np.Inf
+            maxx = np.Inf
+        if min_num:
+            minn = int(min_num)
+        else:
+            minn = 1
+            
         
-        algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['views_per_video']),int(max_cost),num)
-        print('works')
+        algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['views_per_video']),int(max_cost),max_num_of_items=maxx,min_num_of_items=minn)
+        print('steted work')
         best_bits,best_result = algorithm.algorithm()
-        print('dfs')
+        print('choosed')
         df_temp['choosed'] = best_bits
         df_temp = df_temp[df_temp['choosed'] == 1]
         dff = df_temp.copy()
         df_choosed = dff.copy()
         choosed = 1 
-
+    else:
+        start_button = button
     
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
@@ -293,9 +253,11 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
             style={'color': colors['text'],'width': '33%','display': 'inline-block'}
         ),
         html.Div(children=[
-            dcc.Textarea(placeholder='type how many actor do you want (optional)',id='num_actors'),
+            dcc.Textarea(placeholder='min num of actors (optional)',id='min_actors'),
+            dcc.Textarea(placeholder='max num of actors (optional)',id='max_actors'),
             dcc.Textarea(placeholder='your cost limit (only numbers)',id='max_cost'),
-            dcc.Checklist(['include null informations'],id='include_null'),
+            html.Button('download_views',id='vid_download',n_clicks=0),
+            html.Button('update_info',id='info_download',n_clicks=0),
             html.Button('Choose actors',id='start',n_clicks=0)], 
             style={'color': colors['text'],'width': '33%','display': 'inline-block'}
         ),

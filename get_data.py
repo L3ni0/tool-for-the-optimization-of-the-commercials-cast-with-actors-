@@ -26,23 +26,26 @@ def get_views(link):
     global s, jar
     print(link)
     r = requests.get(link, cookies=jar)
-    print(r)
     soup = BeautifulSoup(r.text, 'html.parser')
     star_info = soup.find('div', class_='infoBox videoViews tooltipTrig') or soup.find('div', class_='tooltipTrig infoBox videoViews')
 
     if star_info:
-        print(''.join(re.findall('\d',star_info.text)))
-        return int(''.join(re.findall('\d',star_info.text)))
+
+        star_info = star_info.get('data-title')
+        number = int(''.join(re.findall('\d',star_info)))
+        return number
     else:
         return -1
 
 
 
 if __name__ == '__main__':
+    
+    pornstar_video_count_dict = get_pornstar_dict()
     with open(today_filename,'w',encoding="utf-8") as file:
 
         file.write('star,date,video_count,views\n')
-        pornstar_video_count_dict = get_pornstar_dict()
+
         with open('stars.csv','r',encoding="utf-8") as stars_links_file:
             stars_links_file.readline()
 
