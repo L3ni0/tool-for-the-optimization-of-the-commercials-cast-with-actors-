@@ -6,7 +6,7 @@ def get_pornstar_list():
 
     unpacked_list = [*pornstars][0][1]
     for pornstars in unpacked_list:
-        if not str(pornstars.star.star_thumb).startswith('https://ei.phncdn.com/pics/pornstars/default') and int(pornstars.star.videos_count_all) > 30:
+        if not str(pornstars.star.star_thumb).startswith('https://ei.phncdn.com/pics/pornstars/default'): # to filer blank accont
             yield pornstars.star.star_name, pornstars.star.star_url
 
 
@@ -17,4 +17,3 @@ with open('stars.csv','w',encoding="utf-8") as file:
             file.write(f'{pornstar},{url}\n')
         except:
             print(pornstar,url)
-            

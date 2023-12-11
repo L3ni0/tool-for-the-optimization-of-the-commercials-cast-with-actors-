@@ -1,13 +1,15 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 class Genetic_algorithm_knapsack:
 
-    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1, \
-                 num_of_population=10,p_crossing=0.8, p_mutation=0.1, treshold=0.5, starting_point=10) -> None:
+    def __init__(self,weights,values,max_weight,max_num_of_items=np.inf,min_num_of_items=1,num_of_population=100,p_crossing=0.01, p_mutation=0.1, treshold=0.5, starting_point=10) -> None:
 
-        assert len(weights) == len(values), 'weights and values number is different'
-        assert min(weights) <= max_weight, "solution doesn't exist"
-        assert max_num_of_items > min_num_of_items, 'max num of items is lower than min num of items'
+        # assert len(weights) == len(values), 'weights and values number is different'
+        # assert min(weights) <= max_weight, "solution doesn't exist"
+        # assert max_num_of_items > min_num_of_items, 'max num of items is lower than min num of items'
 
         self.weights = np.array(weights)
         self.max_weight = max_weight
@@ -77,10 +79,12 @@ class Genetic_algorithm_knapsack:
 
         if np.sum(bits) < self.min_num_of_items:
 
-            choosed_bits = [np.random.randint(0, len(bits)) for _ in range(self.max_num_of_items)]
+            while np.sum(bits) <  self.min_num_of_items:
 
-            for i in choosed_bits:
-                bits[i] = 1
+                choosed_bits = [i for i,b in enumerate(bits) if b == 0]
+                choosed_bit = np.random.choice(choosed_bits)
+                bits[choosed_bit] = 1
+
 
         elif np.sum(bits) >  self.max_num_of_items:
 
@@ -96,12 +100,14 @@ class Genetic_algorithm_knapsack:
             dic_choosed_prices = {i:self.weights[i] for i,b in enumerate(bits) if b == 1}
             most_wage = max(dic_choosed_prices, key=dic_choosed_prices.get)
 
-            cheaper_bits = [i for i,b in enumerate(bits) if self.weights[most_wage] > self.weights[i]]
+            cheaper_bits = [i for i,b in enumerate(bits) if self.weights[most_wage] > self.weights[i] and bits[i] == 0]
+            if cheaper_bits:
+                replacing_bit = np.random.choice(cheaper_bits)
 
-            replacing_bit = np.random.choice(cheaper_bits)
-
-            bits[most_wage] = 0
-            bits[replacing_bit] =  1
+                bits[most_wage] = 0
+                bits[replacing_bit] =  1
+            elif np.sum(bits) - 1 >= self.min_num_of_items:
+                bits[most_wage] = 0
         
         return bits
                 
@@ -131,8 +137,10 @@ class Genetic_algorithm_knapsack:
                     best_bytes, best_results = population[i], results[i]
                     best_gen = gen
                     # print(f"w generacji {gen}, najlepsza populacja {populacja[i]} ma wynik {results[i]}")
-
-            BF_list.append(max(results))
+            
+            
+            BF_list.append(best_results)
+            del BF_list[0]
             
             # wybieranie rodzicow
             parents = [self.selection(population, results) for _ in range(self.num_of_population)]
@@ -140,7 +148,7 @@ class Genetic_algorithm_knapsack:
             # kolejna generacja
             kids = list()
             for i in range(0, self.num_of_population, 2):
-
+   
                 r1, r2 = parents[i], parents[i+1]
 
                 for kid in self.crossover(r1, r2):
@@ -151,25 +159,23 @@ class Genetic_algorithm_knapsack:
 
             if gen <= self.starting_point:
                 continue
-
-
-            running_mean = ((1/(gen - self.starting_point))*np.sum([(BFi - best_results)**2 for BFi in BF_list]))
-            print(running_mean)
+            running_mean = ((1/self.starting_point)*np.sum([(BFi - best_results)**2 for BFi in BF_list]))
             if running_mean<self.treshold:
                 break
 
-        return [best_bytes, best_results]
+        return best_bytes, best_results
+
     
+
+
 if __name__ == '__main__':
+    values = [4,5,13,2,4,6,10,3]
+    wages = [1,3,9,2,6,7,4,2]
+    max_wage = 14
+    print(f'dane: \n\twartości: {values}\n\twagi: {wages}')
+    print('-------brak ograniczeń ilościowych ------------')
+    print(f'dla wymagań: \n\tmaksymalna waga: {max_wage}')
+    g1 = Genetic_algorithm_knapsack(wages,values,max_wage)
+    b,r = g1.algorithm()
+    print(f'wynik: \n\twybrane elementy{b}\n\tsumaryczna warość wybranych elementów: {r}\n\tsumaryczna waga: {sum([wages[i] for i in range(len(b)) if b[i] == 1])}')
 
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    #generate test set
-    values = [np.random.randint(0,1000) for _ in range(100)]
-    weights = [np.random.randint(0,1000) for _ in range(100)]
-
-    g1 = Genetic_algorithm_knapsack(values,weights,np.quantile(weights,0.30),treshold=0.5)
-    naj_bity,naj_wynik = g1.algorithm()
-    print(f'najlepszy wynik ma populacja {naj_bity} ma wynik {naj_wynik}')

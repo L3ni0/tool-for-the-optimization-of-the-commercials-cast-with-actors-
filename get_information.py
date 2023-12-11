@@ -4,6 +4,9 @@ import requests
 from http.cookiejar import MozillaCookieJar 
 import re
 from datetime import date
+import pandas as pd
+import numpy as np
+import os
 
 
 filename = 'data/information/general_information.csv'
@@ -66,18 +69,12 @@ def get_info(link):
     return list_of_informations
 
 
-def get_cost(link):
-    global s, jar
+def get_cost(name):
+    csv_file = max(['data/'+file for file in os.listdir('data') if file.endswith('.csv')])
+    df = pd.read_csv(csv_file)
+    row = df[df.star == name]   
+    return row 
 
-    r = requests.get(link, cookies=jar)
-    soup = BeautifulSoup(r.text, 'html.parser')
-    star_info = soup.find('div', class_='infoBox videoViews tooltipTrig') or soup.find('div', class_='tooltipTrig infoBox videoViews')
-
-    if star_info:
-
-        return int(''.join(re.findall('\d',star_info.text)))/500
-    else:
-        return -1
 
 
 if __name__ == '__main__':
@@ -94,7 +91,7 @@ if __name__ == '__main__':
                 Age,Birthplace,Height,Weight,Gender,Ethnicity = get_info(url.strip())
 
                 try:
-                    if (cost:=get_cost(url.strip())) != -1:
+                    if (cost:=get_cost(pornstar)) != -1:
                         file.write(f'{pornstar},{Age},{Birthplace},{Height},{Weight},{Gender},{Ethnicity},{cost}\n')
                 except:
                     print(pornstar,url)

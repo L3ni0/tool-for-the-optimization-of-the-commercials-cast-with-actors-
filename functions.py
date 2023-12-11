@@ -54,6 +54,7 @@ def split_filter_part(filter_part):
 
 def create_summaries(df) -> pd.DataFrame:
 
+    df['views'] =  (df['views'] / df['video_count']).round(0)
     df_pivoted = df.pivot_table(index='star',columns='date',values='views').reset_index()
     newest = df_pivoted.columns[-1]
 

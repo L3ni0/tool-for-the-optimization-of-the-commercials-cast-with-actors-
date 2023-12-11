@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from functions import *
 from algorytm_genetyczny import Genetic_algorithm_knapsack
+import concurrent.futures
+import subprocess
 
 app = Dash(__name__)
 
@@ -29,12 +31,16 @@ gender_options = list(df_info['Gender'].dropna().unique())
 ethnicity_options = list(df_info['Ethnicity'].dropna().unique())
 location_option = list(df_info['Birthplace'].dropna().unique())
 start_button = 0
+vid_button = 0
+info_button = 0
+star_button = 0
 choosed = 0
 
         
 
 @callback(
     Output('interactive_table', 'data'),
+    Input('datatable-page-count', 'value'),
     Input('interactive_table', "page_current"),
     Input('interactive_table', "page_size"),
     Input('interactive_table', 'sort_by'),
@@ -50,17 +56,32 @@ choosed = 0
     Input('min_actors', "value"),
     Input('vid_download', 'n_clicks'),
     Input('info_download', 'n_clicks'),
+    Input('star_update', 'n_clicks'),
     Input('start', 'n_clicks'),
     Input('max_cost', 'value'))
-def update_table(page_current, page_size, sort_by, filter, selected,gender,ethnicity,location,age,height,weight,max_num,min_num,vid_d,info_d,button,max_cost):
-    global start_button, df_choosed, choosed
+def update_table(page_num,page_current, page_size, sort_by, filter, selected,gender,ethnicity,location,age,height,weight,max_num,min_num,vid_d,info_d,star_d,button,max_cost):
+    global start_button, df_choosed, choosed, vid_button, info_button, start_button
+
     filtering_expressions = filter.split(' && ')
+
     if not choosed:
         dff = df_pivoted.copy()
     else:
         dff = df_choosed.copy()
     
-    print(button,max_cost)
+
+    if vid_d > vid_button:
+        vid_button = vid_d
+        subprocess.run(['python','get_data.py'])
+
+    if info_d > info_button:
+        info_button = info_d
+        subprocess.run(['python','get_information.py'])
+
+    if star_d > start_button:
+        start_button = star_d
+        subprocess.run(['python','get_information.py'])
+
     if button > start_button and max_cost:
         start_button = button
         print('started')
@@ -87,11 +108,15 @@ def update_table(page_current, page_size, sort_by, filter, selected,gender,ethni
         else:
             minn = 1
             
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            print(df_temp.head(5))
+            algorithm = Genetic_algorithm_knapsack(weights=list(df_temp['Cost']),values=list(df_temp['Current_Viewership']),max_weight=int(max_cost),max_num_of_items=maxx,min_num_of_items=minn)
+            print('steted work')
+            future = executor.submit(algorithm.algorithm)
+            print('choosed')
+            best_bits,best_result = future.result()
+            
         
-        algorithm = Genetic_algorithm_knapsack(list(df_temp['Cost($)']),list(df_temp['views_per_video']),int(max_cost),max_num_of_items=maxx,min_num_of_items=minn)
-        print('steted work')
-        best_bits,best_result = algorithm.algorithm()
-        print('choosed')
         df_temp['choosed'] = best_bits
         df_temp = df_temp[df_temp['choosed'] == 1]
         dff = df_temp.copy()
@@ -127,7 +152,7 @@ def update_table(page_current, page_size, sort_by, filter, selected,gender,ethni
 
 
     page = page_current
-    size = page_size
+    size = page_num
     dff = dff.iloc[page * size: (page + 1) * size].to_dict('records')
     return dff
 
@@ -156,6 +181,7 @@ def update_lower_graph(data):
                           'y': dff[dff['star']==star]['views'],
                           'type': 'line',
                           'name': star,
+
                         #   'showlegend':False,
                         #   'marker': {'color': colors['text']},
                             }
@@ -163,6 +189,8 @@ def update_lower_graph(data):
                       ],
                         'layout': 
                             {
+                            'xaxis': {'title':'Date'},
+                            'yaxis' : {'title':'AGV Views per video'},
                             'backgroundColor': '#000000',
                             'transition': 
                                 {
@@ -181,12 +209,15 @@ def update_lower_graph(data):
                           'y': dff[dff['star']==star]['video_count'],
                           'type': 'line',
                           'name': star,
+
                         #   'marker': {'color': colors['text']},
                             }
                             for star in dff['star'].unique()
                       ],
                         'layout': 
                             {
+                            'xaxis':  {'title':'Date'},
+                            'yaxis' : {'title':'Video Count'},
                             'backgroundColor': '#000000',
                             'transition': 
                                 {
@@ -219,20 +250,18 @@ def update_side_plot(data):
                           'name': star,
                             }
                             for star in dff['star'].unique()
-                      ]
+                      ],
+                       'layout':
+                       {
+                            'xaxis': {"title":'Actor'},
+                            'yaxis' : {"title":'Summarized Views'},
+                       }
 
                          }
                   )])
 
 app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
-
-    html.H1(
-        children='InfluStatsHub',
-        style={
-            'textAlign': 'center',
-            'color': colors['text']
-        }
-    ),
+    
     html.Div(children=[
         html.Div(children=[
             html.Label('Gender'),
@@ -264,7 +293,16 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
 
 
     ]),
-    
+    html.Div(children=[
+        html.Label('actors in one page'),
+        dcc.Input(
+            id='datatable-page-count',
+            type='number',
+            min=1,
+            max=29,
+            value=10),
+            ]),
+
     html.Div(children=[html.Div(children=
             dash_table.DataTable(
             id='interactive_table',
@@ -282,20 +320,27 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
             page_action="custom",
             page_current= 0,
             page_size= page_size,
-            ),style={'width': '48%', 'display': 'inline-block','overflowY': 'scroll'}),
+            ),style={'width': '48%','height':'330px','display': 'inline-block','overflowY': 'auto'}),
+            
 
         
         html.Div(id='table-side-graph',style={'backgroundColor': colors['background'],'display': 'inline-block','width': '48%'})],
         ),
     
+    
     html.Div(id='first_graph',style={'backgroundColor': colors['background']}),
     html.Div(id='selected_graph',style={'backgroundColor': colors['background']}),
     html.Div(id='datatable-interactivity-container',style={'width': '48%', 'display': 'inline-block'}),
-    html.Div(id='algorithm-container',style={'width': '48%', 'display': 'inline-block'})
+    html.Div(id='algorithm-container',style={'width': '48%', 'display': 'inline-block'}),
+    html.Div(children=[
+            'if you really need to:',
+            html.Button('update star.csv',id='star_update',n_clicks=0)], 
+            style={'color': colors['text'],'width': '33%','display': 'inline-block'}
+        )
 
 ])
 
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
